@@ -34,15 +34,15 @@ app.use(
 );
 
 const db = mysql.createConnection({
-  // user: "root",
-  // host: "localhost",
-  // password: "",
-  // database: "agri"
+  user: "root",
+  host: "localhost",
+  password: "",
+  database: "agri"
 
-  user: "abdullah112211",
-  host: "db4free.net",
-  password: "abdullah112211",
-  database: "abdullah112211"
+  // user: "abdullah112211",
+  // host: "db4free.net",
+  // password: "abdullah112211",
+  // database: "abdullah112211"
 });
 
 // db.connect(function(err) {
@@ -109,8 +109,8 @@ app.post("/login", (req, res) => {
       if (err) {
         res.send({ err: err });
       }
-
-      if (result.length > 0) {
+      if (result)
+     { if (result.length > 0) {
         bcrypt.compare(password, result[0].password, (error, response) => {
           
           if (response) {
@@ -123,6 +123,9 @@ app.post("/login", (req, res) => {
           }
         });
       } else {
+        res.send({"code":401, message: "User doesn't exist" });
+      }}
+      else {
         res.send({"code":401, message: "User doesn't exist" });
       }
     }
@@ -150,10 +153,73 @@ app.post("/logout", (req, res)=>{
 app.post("/field", (req, res) => {
   const boardID = req.body.field;
   //console.log(boardID)
-  const sql = "SELECT * FROM timedata WHERE boardID = " + boardID + " order by datetime desc LIMIT 1"
+  const sql = "SELECT UNIX_TIMESTAMP(datetime) AS date,boardID,mist1,mist2,mist3,mist4,humidity,temperature,motor1,motor2,datetime FROM `timedata` WHERE boardID = " + boardID + " order by datetime desc LIMIT 1;"
+  //const sql = "SELECT * FROM timedata WHERE boardID = " + boardID + " order by datetime desc LIMIT 1"
   db.query(sql, (err, result) => {
     if (err) throw err;
     //console.log(result)
+    res.send(result)
+  })
+});
+
+app.post("/setAutomanual", (req, res) => {
+  const automanual = req.body.automanual;
+  const boardID = req.body.field;
+  const sql = "UPDATE `ownership` SET `automanual`= " + automanual + " WHERE boardID = "+ boardID;
+  //console.log(sql)
+  db.query(sql, (err, result) => {
+    if (err) throw err;
+    res.send(result)
+  })
+})
+
+app.post("/setMotor1", (req, res) => {
+  const m1 = req.body.motor1;
+  const boardID = req.body.field;
+  const sql = "UPDATE `ownership` SET `m1`= " + m1 + " WHERE boardID = "+ boardID;
+  //console.log(sql)
+  db.query(sql, (err, result) => {
+    if (err) throw err;
+    res.send(result)
+  })
+})
+
+app.post("/setMotor2", (req, res) => {
+  const m2 = req.body.motor2;
+  const boardID = req.body.field;
+  const sql = "UPDATE `ownership` SET `m2`= " + m2 + " WHERE boardID = "+ boardID;
+  //console.log(sql)
+  db.query(sql, (err, result) => {
+    if (err) throw err;
+    res.send(result)
+  })
+})
+
+app.post("/getAutoMotor", (req, res) => {
+  const boardID = req.body.field;
+  const sql = "SELECT * FROM `ownership` WHERE boardID = "+ boardID;
+  db.query(sql, (err, result) => {
+    if (err) throw err;
+    res.send(result)
+  })
+})
+
+app.post("/last10daysrecord", (req, res) => {
+  const boardID = req.body.field;
+  const sql = "SELECT UNIX_TIMESTAMP(datetime) AS date, EXTRACT(day FROM datetime) AS day,EXTRACT(month FROM datetime) AS month, AVG(humidity) AS humidity_average, AVG(mist1) AS mist_average, AVG(temperature) AS temp_average FROM `timedata` WHERE boardID = " + boardID +
+" GROUP BY DATE(datetime) ORDER BY DATE(datetime) DESC LIMIT 10";
+  db.query(sql, (err, result) => {
+    if (err) throw err;
+    res.send(result)
+  })
+});
+
+app.post("/last10hoursrecord", (req, res) => {
+  const boardID = req.body.field;
+  const sql = "SELECT UNIX_TIMESTAMP(datetime) AS date, EXTRACT(day FROM datetime) AS day, EXTRACT(hour FROM datetime) AS hour,AVG(humidity) AS humidity_average,AVG(mist1) AS mist_average,AVG(temperature) AS temp_average  from timedata WHERE boardID = " + boardID +
+" GROUP BY DATE(datetime), EXTRACT(hour FROM datetime) ORDER BY DATE(datetime) DESC, EXTRACT(hour FROM datetime) DESC LIMIT 10";
+  db.query(sql, (err, result) => {
+    if (err) throw err;
     res.send(result)
   })
 });
