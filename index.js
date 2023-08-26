@@ -102,15 +102,15 @@ app.use(
 );
 
 const db = mysql.createConnection({
-  user: "root",
-  host: "localhost",
-  password: "",
-  database: "agri"
+  // user: "root",
+  // host: "localhost",
+  // password: "",
+  // database: "agri"
 
-  // user: "abdullah112211",
-  // host: "db4free.net",
-  // password: "abdullah112211",
-  // database: "abdullah112211"
+  user: "abdullah112211",
+  host: "db4free.net",
+  password: "abdullah112211",
+  database: "abdullah112211"
 });
 
 // const storage = multer.diskStorage({
@@ -131,57 +131,119 @@ const db = mysql.createConnection({
 //   res.json({ message: 'Image uploaded successfully' });
 // });
 
-app.post('/upload', upload.single('image'),async (req, res) => {
-  if (!req.file) {
-    return res.status(400).send('No file uploaded.');
-  }
-  //console.log(req.file)
-  const imageBuffer = req.file.buffer;
-  console.log(req.file.buffer);
-
-  const image = tf.node.decodeImage(imageBuffer);
-  
-  const resizedImage = tf.image.resizeBilinear(image, [300, 300]);
-  const normalizedImage = resizedImage.div(255);
-
-  // Expand dimensions to create a batch of one image
-  const batchedImage = normalizedImage.expandDims(0);
-
-
-  //Load Model
-  const model = await tf.loadLayersModel('http://127.0.0.1:8080/model.json');
-  //Make predictions
-  const predictions = model.predict(batchedImage);
-
-  // Convert predictions tensor to a regular JavaScript array
-  const predictionsArray = predictions.arraySync();
-
-  // Print the predicted values
-  console.log(predictionsArray);
-
-  // Clean up
-  image.dispose();
-  resizedImage.dispose();
-  normalizedImage.dispose();
-  predictions.dispose();
-
-
-  // Process the uploaded image (req.file) here
-  res.status(200).send('File uploaded successfully.');
-});
-
-// app.post('/upload', (req, res) => {
-//   const imageFile = req.body.image;
-//   console.log("hello")
-
-//   if (!imageFile) {
-//     return res.status(400).send('No image file received.');
+// app.post('/upload', upload.single('image'),async (req, res) => {
+//   if (!req.file) {
+//     return res.status(400).send('No file uploaded.');
 //   }
-
-//   // Process the imageFile here (save to disk, perform any operations, etc.)
   
-//   return res.status(200).send('File uploaded successfully.');
+
+
+//   const imageData = req.file.buffer;
+//   console.log("req.file.buffer   :  "+imageData)
+
+//   const imageBuffer = Buffer.from(imageData, 'base64');
+//   console.log(imageBuffer)
+  
+//   const image = tf.node.decodeImage(imageBuffer);
+  
+//   const resizedImage = tf.image.resizeBilinear(image, [300, 300]);
+//   const normalizedImage = resizedImage.div(255);
+
+//   // Expand dimensions to create a batch of one image
+//   const batchedImage = normalizedImage.expandDims(0);
+
+
+//   // //Load Model
+//   // const model = await tf.loadLayersModel('http://127.0.0.1:8080/model.json');
+//   // //Make predictions
+//   // const predictions = model.predict(batchedImage);
+
+//   // // Convert predictions tensor to a regular JavaScript array
+//   // const predictionsArray = predictions.arraySync();
+
+//   // // Print the predicted values
+//   // console.log(Math.max(...predictionsArray[0]));
+
+//   // const maxValue = Math.max(...predictionsArray[0]);
+//   // const maxIndex = predictionsArray[0].indexOf(maxValue);
+
+//   // console.log("max index is " + maxIndex)
+//   // // Clean up
+//   // image.dispose();
+//   // resizedImage.dispose();
+//   // normalizedImage.dispose();
+//   // predictions.dispose();
+
+
+//   // // Process the uploaded image (req.file) here
+//   // res.status(200).send('File uploaded successfully.');
 // });
+
+app.post('/upload',async (req, res) => {
+  const imageFile = req.body.image;
+  //console.log(imageFile)
+
+  if (!imageFile) {
+    return res.status(400).send('No image file received.');
+  }
+  const imageBuffer = Buffer.from(imageFile, 'base64');
+     //console.log(imageBuffer)
+     const image = tf.node.decodeImage(imageBuffer);
+     const resizedImage = tf.image.resizeBilinear(image, [300, 300]);
+      const normalizedImage = resizedImage.div(tf.scalar(255));
+
+      // Expand dimensions to create a batch of one image
+      const batchedImage = normalizedImage.expandDims(0);
+      //console.log(tf.concat([batchedImage]))
+
+
+      //Load Model
+      const model = await tf.loadLayersModel('http://127.0.0.1:8080/model.json');
+      //Make predictions
+      const predictions = model.predict(batchedImage);
+
+      // Convert predictions tensor to a regular JavaScript array
+      const predictionsArray = predictions.arraySync();
+
+      // Print the predicted values
+      console.log(Math.max(...predictionsArray[0]));
+
+      const maxValue = Math.max(...predictionsArray[0]);
+      const maxIndex = predictionsArray[0].indexOf(maxValue);
+
+      
+
+      console.log("max index is " + maxIndex)
+      // Clean up
+      image.dispose();
+      resizedImage.dispose();
+      normalizedImage.dispose();
+      predictions.dispose();
+
+      if(maxIndex === 0)
+      {
+        return res.send({code : 100, message : "PowderyMildew"});
+      }
+      else if(maxIndex === 1)
+      {
+        return res.send({code : 101, message : "Scab"});
+      }
+      else if(maxIndex === 2)
+      {
+        return res.send({code : 102, message : "Healthy"});
+      }
+      else if(maxIndex === 3)
+      {
+        return res.send({code : 103, message : "Invalid Data"});
+      }
+      else if(maxIndex === 4)
+      {
+        return res.send({code : 104, message : "Stripe Rust"});
+      }
+      else{
+        return res.send({code : 105, message : "Error"})
+      }
+});
 
 // db.connect(function(err) {
 //     if (err) throw err;
@@ -292,7 +354,7 @@ app.post("/field", (req, res) => {
   const boardID = req.body.field;
   //console.log(boardID)
   const sql = "SELECT UNIX_TIMESTAMP(datetime) AS date,boardID,mist1,mist2,mist3,mist4,humidity,temperature,motor1,motor2,datetime FROM `timedata` WHERE boardID = " + boardID + " order by datetime desc LIMIT 1;"
-  //const sql = "SELECT * FROM timedata WHERE boardID = " + boardID + " order by datetime desc LIMIT 1"
+  //const sql = "SELECT * FROM timedata WHERE boardID = " + boardID + " order by datetime desc LIMIT 1" ,waterLevel
   db.query(sql, (err, result) => {
     if (err) throw err;
     //console.log(result)
